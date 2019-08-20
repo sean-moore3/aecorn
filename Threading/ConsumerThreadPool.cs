@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 
 namespace NationalInstruments.Aecorn.Threading
 {
-    class ConsumerThreadPool : IDisposable
+    public class ConsumerThreadPool : IDisposable
     {
         private List<ConsumerThread> consumerThreads = new List<ConsumerThread>();
         private BlockingCollection<Action> sharedTaskQueue = new BlockingCollection<Action>(new ConcurrentQueue<Action>());

@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace NationalInstruments.Aecorn.Threading
 {
-    class ConsumerThread : IDisposable
+    public class ConsumerThread : IDisposable
     {
         private readonly Thread consumer;
         private readonly BlockingCollection<Action> taskQueue;
