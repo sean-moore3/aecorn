@@ -1,0 +1,3 @@
+[submodule "rdls"]
+	path = rdls
+	url = https://github.com/NISystemsEngineering/rfic-reference-design-libraries-csharp.git
