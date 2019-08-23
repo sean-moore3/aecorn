@@ -1,60 +1,110 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Threading;
 
 namespace NationalInstruments.Aecorn.Threading
 {
-    public class ConsumerThread : IDisposable
+    public class ConsumerThread
     {
-        private readonly Thread consumer;
-        private readonly BlockingCollection<Action> taskQueue;
-        private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
-        private readonly CancellationToken cancellationToken;
+        private readonly CancellationTokenSource threadCancellationTokenSource = new CancellationTokenSource();
+        private readonly CancellationToken threadCancellationToken;
+
+        private readonly Thread consumerThread;
+        private readonly BlockingCollection<ICallable> callbackQueue;
+        
+        private readonly ManualResetEventSlim threadStartedEvent = new ManualResetEventSlim();
 
         /// <summary>
-        /// Creates a new consumer thread that uses the specified task queue.
+        /// Creates a new consumer thread that uses the specified <see cref="ICallable"/> blocking collection.
         /// </summary>
-        /// <param name="taskQueue">Task queue for the consumer thread to use.</param>
-        public ConsumerThread(BlockingCollection<Action> taskQueue)
+        public ConsumerThread(BlockingCollection<ICallable> callbackQueue)
         {
-            consumer = new Thread(new ThreadStart(Consumer));
-            this.taskQueue = taskQueue;
-            consumer.Start();
-            cancellationToken = cancellationTokenSource.Token;
+            threadCancellationToken = threadCancellationTokenSource.Token;
+            this.callbackQueue = callbackQueue;
+
+            consumerThread = new Thread(new ThreadStart(Consumer));
+            consumerThread.Start();
+
+            Enqueue(Callback.New((startedEvent) => startedEvent.Set(), threadStartedEvent));
         }
 
         /// <summary>
-        /// Creates a new consumer thread.
+        /// Requests a new thread from the operating system.
+        /// This method may return before the thread is ready to begin executing callbacks.
+        /// Call <see cref="WaitUntiThreadStart(int)"/> to wait until the thread has completed startup.
         /// </summary>
-        public ConsumerThread() : this(new BlockingCollection<Action>(new ConcurrentQueue<Action>())) { }
+        public ConsumerThread() : this(new BlockingCollection<ICallable>(new ConcurrentQueue<ICallable>())) { }
 
         /// <summary>
-        /// Enqueues a task onto the consumer thread's task queue.
+        /// Blocks until the thread is ready to start executing callbacks.
         /// </summary>
-        /// <param name="task"></param>
-        public void Enqueue(Action task)
+        /// <param name="millisecondsTimeout">Time to wait before timing out.</param>
+        public void WaitUntiThreadStart(int millisecondsTimeout = -1)
         {
-            taskQueue.Add(task);
+            threadStartedEvent.Wait(millisecondsTimeout);
         }
 
         /// <summary>
-        /// Closes the consumer thread.
+        /// Enqueues a <see cref="ICallable"/> onto the consumer thread's callback queue.
         /// </summary>
-        public void Dispose()
+        public void Enqueue(ICallable callback)
         {
-            cancellationTokenSource.Cancel();
+            callbackQueue.Add(callback);
+        }
+
+        /// <summary>
+        /// Waits for all current callbacks in the thread's callback queue to execute before returning.
+        /// </summary>
+        /// <param name="millisecondsTimeout">Amount of time to wait before timing out.</param>
+        public void Wait(int millisecondsTimeout = -1)
+        {
+            ManualResetEventSlim resetEvent = new ManualResetEventSlim(false);
+            Enqueue(Callback.New((manualResetEvent) => manualResetEvent.Set(), resetEvent));
+            resetEvent.Wait(millisecondsTimeout);
+        }
+
+        /// <summary>
+        /// Waits for all current callbacks in the thread's callback queue to execute then gracefully stops the thread.
+        /// </summary>
+        public void Join()
+        {
+            Enqueue(new Callback(Stop));
+            consumerThread.Join();
+        }
+
+        /// <summary>
+        /// Gracefully stops the consumer thread.
+        /// </summary>
+        public void Stop()
+        {
+            threadCancellationTokenSource.Cancel();
+        }
+
+        /// <summary>
+        /// Immediately shuts down the thread.
+        /// Any code that is currently executing will be interrupted.
+        /// </summary>
+        public void Kill()
+        {
+            consumerThread.Abort();
         }
 
         private void Consumer()
         {
-            while (!cancellationToken.IsCancellationRequested)
-                if (taskQueue.TryTake(out Action task, -1, cancellationToken))
-                    task();
+            try
+            {
+                while (!threadCancellationToken.IsCancellationRequested)
+                    if (callbackQueue.TryTake(out ICallable callback, -1, threadCancellationToken))
+                        callback.Call();
+            }
+            catch (ThreadAbortException)
+            {
+                // placeholder
+            }
         }
 
         ~ConsumerThread()
         {
-            Dispose();
+            Join();
         }
     }
 }
