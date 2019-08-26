@@ -13,10 +13,7 @@ namespace NationalInstruments.Aecorn.Threading
         
         private readonly ManualResetEventSlim threadStartedEvent = new ManualResetEventSlim();
 
-        /// <summary>
-        /// Creates a new consumer thread that uses the specified <see cref="ICallable"/> blocking collection.
-        /// </summary>
-        public ConsumerThread(BlockingCollection<ICallable> callbackQueue)
+        internal ConsumerThread(BlockingCollection<ICallable> callbackQueue)
         {
             threadCancellationToken = threadCancellationTokenSource.Token;
             this.callbackQueue = callbackQueue;
@@ -30,17 +27,16 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Requests a new thread from the operating system.
         /// This method may return before the thread is ready to begin executing callbacks.
-        /// Call <see cref="WaitUntiThreadStart(int)"/> to wait until the thread has completed startup.
+        /// Call <see cref="WaitUntiThreadStart()"/> to wait until the thread has completed startup.
         /// </summary>
         public ConsumerThread() : this(new BlockingCollection<ICallable>(new ConcurrentQueue<ICallable>())) { }
 
         /// <summary>
         /// Blocks until the thread is ready to start executing callbacks.
         /// </summary>
-        /// <param name="millisecondsTimeout">Time to wait before timing out.</param>
-        public void WaitUntiThreadStart(int millisecondsTimeout = -1)
+        public void WaitUntiThreadStart()
         {
-            threadStartedEvent.Wait(millisecondsTimeout);
+            threadStartedEvent.Wait();
         }
 
         /// <summary>
@@ -54,21 +50,32 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Waits for all current callbacks in the thread's callback queue to execute before returning.
         /// </summary>
-        /// <param name="millisecondsTimeout">Amount of time to wait before timing out.</param>
-        public void Wait(int millisecondsTimeout = -1)
+        public void Wait()
         {
             ManualResetEventSlim resetEvent = new ManualResetEventSlim(false);
             Enqueue(Callback.New((manualResetEvent) => manualResetEvent.Set(), resetEvent));
-            resetEvent.Wait(millisecondsTimeout);
+            resetEvent.Wait();
         }
 
         /// <summary>
         /// Waits for all current callbacks in the thread's callback queue to execute then gracefully stops the thread.
+        /// This method blocks until the thread has completely shut down before returning.
         /// </summary>
         public void Join()
         {
             Enqueue(new Callback(Stop));
             consumerThread.Join();
+        }
+
+        /// <summary>
+        /// Waits for all current callbacks in the thread's callback queue to execute then gracefully stops the thread.
+        /// This method does not block until the thread has completely shut down before returning.
+        /// </summary>
+        public void Finish()
+        {
+            ManualResetEventSlim resetEvent = new ManualResetEventSlim(false);
+            Enqueue(Callback.New((manualResetEvent) => { manualResetEvent.Set(); Stop(); }, resetEvent));
+            resetEvent.Wait();
         }
 
         /// <summary>

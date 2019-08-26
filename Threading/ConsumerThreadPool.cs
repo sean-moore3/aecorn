@@ -1,12 +1,16 @@
 ﻿using System.Collections.Concurrent;
 
+//#todo: needs more control over child threads
+
 namespace NationalInstruments.Aecorn.Threading
 {
     public class ConsumerThreadPool
     {
         private ConsumerThread[] consumerThreads;
 
-        // derived attributes
+        /// <summary>
+        /// Gets the number of threads in the thread pool.
+        /// </summary>
         public int ThreadCount
         {
             get { return consumerThreads.Length; }
@@ -31,20 +35,6 @@ namespace NationalInstruments.Aecorn.Threading
         public void Enqueue(ICallable callback)
         {
             consumerThreads[0].Enqueue(callback); // since the queues are shared we can enqueue onto any thread
-        }
-
-        /// <summary>
-        /// Disposes of all <see cref="ConsumerThread"/> in the thread pool.
-        /// </summary>
-        public void Close()
-        {
-            foreach (ConsumerThread consumerThread in consumerThreads)
-                consumerThread.Stop();
-        }
-
-        ~ConsumerThreadPool()
-        {
-            Close();
         }
     }
 }
