@@ -1,0 +1,3 @@
+[submodule "Examples/Support/RDLs"]
+	path = Examples/Support/RDLs
+	url = https://github.com/smooresni/rfic-reference-design-libraries-csharp.git
