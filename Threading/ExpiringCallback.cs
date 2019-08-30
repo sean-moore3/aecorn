@@ -12,6 +12,15 @@ namespace NationalInstruments.Aecorn.Threading
     /// </summary>
     public class ExpiringCallback : ICallable
     {
+        private class Box<T> // This class allows us to place a lock on an integer
+        {
+            public T item;
+            public Box(T item)
+            {
+                this.item = item;
+            }
+        }
+
         private readonly ICallable callback;
         private readonly Box<int> expireCount;
 
@@ -30,7 +39,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <param name="expireCount">Amount of times the callback can be called before it expires.</param>
         public ExpiringCallback(ICallable callback, int expireCount) : this(callback)
         {
-            this.expireCount.item1 = expireCount;
+            this.expireCount.item = expireCount;
         }
 
         /// <summary>
@@ -38,13 +47,10 @@ namespace NationalInstruments.Aecorn.Threading
         /// </summary>
         public void Call()
         {
-            bool notExpired;
+            bool notExpired = true; // this boolean helps prevent us from executing the callback while still holding the lock
             lock (expireCount)
-            {
-                notExpired = expireCount.item1 > 0;
-                if (notExpired)
-                    expireCount.item1--;
-            }
+                if (notExpired = expireCount.item > 0)
+                    expireCount.item--;
             if (notExpired)
                 callback.Call();
         }
