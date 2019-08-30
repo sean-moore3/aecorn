@@ -5,10 +5,10 @@
     /// </summary>
     public class Box<T>
     {
-        public T item1;
-        public Box(T item1)
+        public T item;
+        public Box(T item)
         {
-            this.item1 = item1;
+            this.item = item;
         }
     }
 }
