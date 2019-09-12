@@ -3,7 +3,7 @@
     /// <summary>
     /// Defines an interface with a single <see cref="Call"/> method.
     /// </summary>
-    public interface ICallable
+    internal interface ICallable
     {
         void Call();
     }

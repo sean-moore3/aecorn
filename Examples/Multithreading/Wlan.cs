@@ -2,7 +2,6 @@
 using NationalInstruments.RFmx.InstrMX;
 using NationalInstruments.RFmx.WlanMX;
 using System.IO;
-using System.Collections.Generic;
 using static NationalInstruments.ReferenceDesignLibraries.SA.RFmxWLAN;
 
 namespace Multithreading
@@ -34,7 +33,7 @@ namespace Multithreading
             {
                 sites[i] = new SiteConfiguration(resourceNames[i]); // create site configuration
                 threads[i] = new ConsumerThread(); // spawn consumer thread
-                threads[i].Enqueue(Callback.New(InitializeSessions, sites[i])); // queue instrument initialization
+                threads[i].Enqueue(InitializeSessions, sites[i]); // queue instrument initialization
 
                 // set configuration data in each site
                 sites[i].commonConfig.CenterFrequency_Hz = 5.18e9;
@@ -58,28 +57,20 @@ namespace Multithreading
             // queue work items into threads
             for (int i = 0; i < NumberOfSites; i++)
             {
-                // create callback list
-                var callbackList = new List<ICallable>
-                {
-                    // RDL configurations
-                    Callback.New(ConfigureCommon, sites[i].instr, sites[i].wlan, sites[i].commonConfig, sites[i].autoLevelConfig, ""),
-                    Callback.New(PowerEdgeTriggerOverride, sites[i]), // override digital edge trigger with power edge trigger
-                    Callback.New(ConfigureSignal, sites[i].wlan, sites[i].signalConfig, ""),
-                    Callback.New(ConfigureOFDMModAcc, sites[i].wlan, sites[i].ofdmModAccConfig, ""),
+                // RDL configurations
+                threads[i].Enqueue(ConfigureCommon, sites[i].instr, sites[i].wlan, sites[i].commonConfig, sites[i].autoLevelConfig, "");
+                threads[i].Enqueue(PowerEdgeTriggerOverride, sites[i]); // override digital edge trigger with power edge trigger
+                threads[i].Enqueue(ConfigureSignal, sites[i].wlan, sites[i].signalConfig, "");
+                threads[i].Enqueue(ConfigureOFDMModAcc, sites[i].wlan, sites[i].ofdmModAccConfig, "");
 
-                    // initate and measure
-                    Callback.New((site) => site.wlan.Initiate("", ""), sites[i]),
-                    Callback.New(Measure, sites[i], streams[i])
-                };
-
-                // enqueue callbacks
-                foreach (ICallable callback in callbackList)
-                    threads[i].Enqueue(callback);
+                // initate and measure
+                threads[i].Enqueue((site) => site.wlan.Initiate("", ""), sites[i]);
+                threads[i].Enqueue(Measure, sites[i], streams[i]);
             }
           
             // close instruments
             for (int i = 0; i < NumberOfSites; i++)
-                threads[i].Enqueue(Callback.New(sites[i].instr.Close));
+                threads[i].Enqueue(sites[i].instr.Close);
 
             // close threads
             foreach (var thread in threads)
@@ -87,7 +78,7 @@ namespace Multithreading
 
             // close file streams
             foreach (var fileStream in streams)
-                loggingThread.Enqueue(Callback.New(fileStream.Close));
+                loggingThread.Enqueue(fileStream.Close);
 
             // let logging thread finish working
             loggingThread.Finish();
@@ -108,7 +99,7 @@ namespace Multithreading
         private void Measure(SiteConfiguration site, StreamWriter fileStream)
         {
             OFDMModAccResults results = FetchOFDMModAcc(site.wlan);
-            loggingThread.Enqueue(Callback.New((stream, rst) => stream.WriteLine(rst.CompositeRMSEVMMean_dB), fileStream, results));
+            loggingThread.Enqueue((stream, rst) => stream.WriteLine(rst.CompositeRMSEVMMean_dB), fileStream, results);
         }
     }
 }

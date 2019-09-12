@@ -1,10 +1,12 @@
 ﻿using System;
 
-//#todo: needs help documentation
+/// <summary>
+/// Callbacks help encapsule actions and their parameters.
+/// </summary>
 
 namespace NationalInstruments.Aecorn.Threading
 {
-    public class Callback : ICallable
+    internal class Callback : ICallable
     {
         private readonly Action action;
 
@@ -49,7 +51,7 @@ namespace NationalInstruments.Aecorn.Threading
         }
     }
 
-    public class Callback<T> : ICallable
+    internal class Callback<T> : ICallable
     {
         private readonly Action<T> action;
         private readonly T param1;
@@ -66,7 +68,7 @@ namespace NationalInstruments.Aecorn.Threading
         }
     }
 
-    public class Callback<T1, T2> : ICallable
+    internal class Callback<T1, T2> : ICallable
     {
         private readonly Action<T1, T2> action;
         private readonly T1 param1;
@@ -85,7 +87,7 @@ namespace NationalInstruments.Aecorn.Threading
         }
     }
 
-    public class Callback<T1, T2, T3> : ICallable
+    internal class Callback<T1, T2, T3> : ICallable
     {
         private readonly Action<T1, T2, T3> action;
         private readonly T1 param1;
@@ -106,7 +108,7 @@ namespace NationalInstruments.Aecorn.Threading
         }
     }
 
-    public class Callback<T1, T2, T3, T4> : ICallable
+    internal class Callback<T1, T2, T3, T4> : ICallable
     {
         private readonly Action<T1, T2, T3, T4> action;
         private readonly T1 param1;
@@ -129,7 +131,7 @@ namespace NationalInstruments.Aecorn.Threading
         }
     }
 
-    public class Callback<T1, T2, T3, T4, T5> : ICallable
+    internal class Callback<T1, T2, T3, T4, T5> : ICallable
     {
         private readonly Action<T1, T2, T3, T4, T5> action;
         private readonly T1 param1;
