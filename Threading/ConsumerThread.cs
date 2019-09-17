@@ -1,6 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Threading;
-using System;
 
 namespace NationalInstruments.Aecorn.Threading
 {
@@ -10,12 +10,12 @@ namespace NationalInstruments.Aecorn.Threading
         private readonly CancellationToken threadCancellationToken;
 
         private readonly Thread consumerThread;
-        private readonly BlockingCollection<ICallable> callbackQueue;
+        private readonly BlockingCollection<Callback> callbackQueue;
         
         private readonly ManualResetEventSlim threadStartedEvent = new ManualResetEventSlim();
         private readonly ManualResetEventSlim threadSleepEvent = new ManualResetEventSlim(true);
 
-        internal ConsumerThread(BlockingCollection<ICallable> callbackQueue)
+        internal ConsumerThread(BlockingCollection<Callback> callbackQueue)
         {
             threadCancellationToken = threadCancellationTokenSource.Token;
             this.callbackQueue = callbackQueue;
@@ -23,7 +23,7 @@ namespace NationalInstruments.Aecorn.Threading
             consumerThread = new Thread(new ThreadStart(Consumer));
             consumerThread.Start();
 
-            Enqueue((startedEvent) => startedEvent.Set(), threadStartedEvent);
+            EnqueueAction((startedEvent) => startedEvent.Set(), threadStartedEvent);
         }
 
         /// <summary>
@@ -31,13 +31,13 @@ namespace NationalInstruments.Aecorn.Threading
         /// This method may return before the thread is ready to begin executing callbacks.
         /// Call <see cref="WaitUntilThreadStart()"/> to wait until the thread has completed startup.
         /// </summary>
-        public ConsumerThread() : this(new BlockingCollection<ICallable>(new ConcurrentQueue<ICallable>())) { }
+        public ConsumerThread() : this(new BlockingCollection<Callback>(new ConcurrentQueue<Callback>())) { }
 
         #region Queue Methods
         /// <summary>
         /// For private use only.
         /// </summary>
-        private void Enqueue(ICallable callback)
+        private void Enqueue(Callback callback)
         {
             callbackQueue.Add(callback);
         }
@@ -45,7 +45,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Enqueues an <see cref="Action"/> and its parameters onto the consumer thread's queue.
         /// </summary>
-        public void Enqueue(Action action)
+        public void EnqueueAction(Action action)
         {
             Enqueue(Callback.New(action));
         }
@@ -53,7 +53,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Enqueues an <see cref="Action{T}"/> and its parameters onto the consumer thread's queue.
         /// </summary>
-        public void Enqueue<T>(Action<T> action, T param1)
+        public void EnqueueAction<T>(Action<T> action, T param1)
         {
             Enqueue(Callback.New(action, param1));
         }
@@ -61,7 +61,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Enqueues an <see cref="Action{T1, T2}"/> and its parameters onto the consumer thread's queue.
         /// </summary>
-        public void Enqueue<T1, T2>(Action<T1, T2> action, T1 param1, T2 param2)
+        public void EnqueueAction<T1, T2>(Action<T1, T2> action, T1 param1, T2 param2)
         {
             Enqueue(Callback.New(action, param1, param2));
         }
@@ -69,7 +69,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Enqueues an <see cref="Action{T1, T2, T3}"/> and its parameters onto the consumer thread's queue.
         /// </summary>
-        public void Enqueue<T1, T2, T3>(Action<T1, T2, T3> action, T1 param1, T2 param2, T3 param3)
+        public void EnqueueAction<T1, T2, T3>(Action<T1, T2, T3> action, T1 param1, T2 param2, T3 param3)
         {
             Enqueue(Callback.New(action, param1, param2, param3));
         }
@@ -77,7 +77,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Enqueues an <see cref="Action{T1, T2, T3, T4}"/> and its parameters onto the consumer thread's queue.
         /// </summary>
-        public void Enqueue<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action, T1 param1, T2 param2, T3 param3, T4 param4)
+        public void EnqueueAction<T1, T2, T3, T4>(Action<T1, T2, T3, T4> action, T1 param1, T2 param2, T3 param3, T4 param4)
         {
             Enqueue(Callback.New(action, param1, param2, param3, param4));
         }
@@ -85,20 +85,80 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Enqueues an <see cref="Action{T1, T2, T3, T4, T5}"/> and its parameters onto the consumer thread's queue.
         /// </summary>
-        public void Enqueue<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action, T1 param1, T2 param2, T3 param3, T4 param4, T5 param5)
+        public void EnqueueAction<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> action, T1 param1, T2 param2, T3 param3, T4 param4, T5 param5)
         {
             Enqueue(Callback.New(action, param1, param2, param3, param4, param5));
         }
 
         /// <summary>
-        /// Immediately puts the thread to sleep, removes all actions from the queue, then awakens the thread.
+        /// Enqueues an <see cref="Func{TResult}"/> and its parameters onto the consumer thread's queue.
+        /// </summary>
+        public FuncResultToken<TResult> EnqueueFunc<TResult>(Func<TResult> func)
+        {
+            var callback = Callback.New(func);
+            Enqueue(callback);
+            return callback.resultToken;
+        }
+
+        /// <summary>
+        /// Enqueues an <see cref="Func{T1, TResult}"/> and its parameters onto the consumer thread's queue.
+        /// </summary>
+        public FuncResultToken<TResult> EnqueueFunc<T1, TResult>(Func<T1, TResult> func, T1 param1)
+        {
+            var callback = Callback.New(func, param1);
+            Enqueue(callback);
+            return callback.resultToken;
+        }
+
+        /// <summary>
+        /// Enqueues an <see cref="Func{T1, T2, TResult}"/> and its parameters onto the consumer thread's queue.
+        /// </summary>
+        public FuncResultToken<TResult> EnqueueFunc<T1, T2, TResult>(Func<T1, T2, TResult> func, T1 param1, T2 param2)
+        {
+            var callback = Callback.New(func, param1, param2);
+            Enqueue(callback);
+            return callback.resultToken;
+        }
+
+        /// <summary>
+        /// Enqueues an <see cref="Func{T1, T2, T3, TResult}"/> and its parameters onto the consumer thread's queue.
+        /// </summary>
+        public FuncResultToken<TResult> EnqueueFunc<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> func, T1 param1, T2 param2, T3 param3)
+        {
+            var callback = Callback.New(func, param1, param2, param3);
+            Enqueue(callback);
+            return callback.resultToken;
+        }
+
+        /// <summary>
+        /// Enqueues an <see cref="Func{T1, T2, T3, T4, TResult}"/> and its parameters onto the consumer thread's queue.
+        /// </summary>
+        public FuncResultToken<TResult> EnqueueFunc<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> func, T1 param1, T2 param2, T3 param3, T4 param4)
+        {
+            var callback = Callback.New(func, param1, param2, param3, param4);
+            Enqueue(callback);
+            return callback.resultToken;
+        }
+
+        /// <summary>
+        /// Enqueues an <see cref="Func{T1, T2, T3, T4, T5, TResult}"/> and its parameters onto the consumer thread's queue.
+        /// </summary>
+        public FuncResultToken<TResult> EnqueueFunc<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> func, T1 param1, T2 param2, T3 param3, T4 param4, T5 param5)
+        {
+            var callback = Callback.New(func, param1, param2, param3, param4, param5);
+            Enqueue(callback);
+            return callback.resultToken;
+        }
+
+        /// <summary>
+        /// Immediately puts the thread to sleep, removes all actions from the queue, then wakes the thread.
         /// </summary>
         public void Flush()
         {
             Sleep();
             while (callbackQueue.Count > 0)
                 callbackQueue.Take();
-            Awaken();
+            Wake();
         }
         #endregion
 
@@ -112,32 +172,32 @@ namespace NationalInstruments.Aecorn.Threading
         }
 
         /// <summary>
-        /// Enqueues and returns a unique <see cref="ResetToken"/> that can be used to block the calling thread until the <see cref="ResetToken"/> has been dequeued.
-        /// Call <see cref="WaitOnResetToken(ResetToken)"/> to wait until the <see cref="ResetToken"/> has been dequeued.
+        /// Enqueues a unique <see cref="ResetEventToken"/> that can be used to block the calling thread until the <see cref="ResetEventToken"/> has been dequeued.
+        /// Call <see cref="WaitOnResetEventToken(ResetEventToken)"/> to wait until the <see cref="ResetEventToken"/> has been dequeued.
         /// </summary>
-        public ResetToken EnqueueResetToken()
+        public ResetEventToken EnqueueResetEventToken()
         {
-            ManualResetEventSlim resetEvent = new ManualResetEventSlim(false);
-            Enqueue((manualResetEvent) => manualResetEvent.Set(), resetEvent);
-            return new ResetToken(resetEvent);
+            ResetEventToken resetToken = new ResetEventToken();
+            EnqueueAction((resetEvent) => resetEvent.Set(), resetToken.resetEvent);
+            return resetToken;
         }
 
         /// <summary>
-        /// Waits for all current actions ahead of the <see cref="ResetToken"/> to execute before returning.
+        /// Waits until the provided <see cref="ResetEventToken"/> has been dequeued.
         /// </summary>
-        public void WaitOnResetToken(ResetToken resetToken)
+        public void WaitOnResetEventToken(ResetEventToken resetToken)
         {
             resetToken.resetEvent.Wait();
         }
 
         /// <summary>
         /// Waits for all current actions in the queue to execute before returning.
-        /// Encapsulates consecutive calls to <see cref="EnqueueResetToken"/> and <see cref="WaitOnResetToken(ResetToken)"/>.
+        /// Encapsulates consecutive calls to <see cref="EnqueueResetEventToken"/> and <see cref="WaitOnResetEventToken(ResetEventToken)"/>.
         /// </summary>
         public void Wait()
         {
-            var resetToken = EnqueueResetToken();
-            WaitOnResetToken(resetToken);
+            var resetToken = EnqueueResetEventToken();
+            WaitOnResetEventToken(resetToken);
         }
 
         /// <summary>
@@ -148,7 +208,7 @@ namespace NationalInstruments.Aecorn.Threading
         public void Join()
         {
             if (consumerThread.IsAlive)
-                Enqueue(Stop);
+                EnqueueAction(Stop);
             consumerThread.Join();
         }
 
@@ -160,26 +220,26 @@ namespace NationalInstruments.Aecorn.Threading
         public void Finish()
         {
             ManualResetEventSlim resetEvent = new ManualResetEventSlim(false);
-            Enqueue((manualResetEvent) => { manualResetEvent.Set(); Stop(); }, resetEvent);
+            EnqueueAction((manualResetEvent) => { manualResetEvent.Set(); Stop(); }, resetEvent);
             resetEvent.Wait();
         }
 
         /// <summary>
         /// Enqueues a pause action onto the consumer thread's queue.
         /// Items currently in the queue execute before the thread is paused.
-        /// A unique token is returned that can be used to resume the thread with a call to <see cref="Resume(ResetToken)"/>
+        /// A unique token is returned that can be used to resume the thread with a call to <see cref="Resume(ResetEventToken)"/>
         /// </summary>
-        public ResetToken Pause()
+        public ResetEventToken Pause()
         {
-            ManualResetEventSlim threadPauseEvent = new ManualResetEventSlim();
-            Enqueue((pauseEvent) => pauseEvent.Set(), threadPauseEvent);
-            return new ResetToken(threadPauseEvent);
+            ResetEventToken resetToken = new ResetEventToken();
+            EnqueueAction((threadPauseEvent) => threadPauseEvent.Wait(), resetToken.resetEvent);
+            return resetToken;
         }
 
         /// <summary>
-        /// Uses the provided <see cref="ResetToken"/> to resume the thread from the point in the queue when it was paused.
+        /// Uses the provided <see cref="ResetEventToken"/> to resume the thread from the point in the queue when it was paused.
         /// </summary>
-        public void Resume(ResetToken pauseResetToken)
+        public void Resume(ResetEventToken pauseResetToken)
         {
             pauseResetToken.resetEvent.Reset();
         }
@@ -188,7 +248,7 @@ namespace NationalInstruments.Aecorn.Threading
         #region Thread Control
         /// <summary>
         /// Immediately puts the thread to sleep.
-        /// No actions can be dequeued until a call to <see cref="Awaken"/> is made.
+        /// No actions can be dequeued until a call to <see cref="Wake"/> is made.
         /// </summary>
         public void Sleep()
         {
@@ -198,7 +258,7 @@ namespace NationalInstruments.Aecorn.Threading
         /// <summary>
         /// Wakes up a sleeping thread.
         /// </summary>
-        public void Awaken()
+        public void Wake()
         {
             threadSleepEvent.Set();
         }
@@ -238,7 +298,7 @@ namespace NationalInstruments.Aecorn.Threading
                 while (!threadCancellationToken.IsCancellationRequested)
                 {
                     threadSleepEvent.Wait(threadCancellationToken);
-                    if (callbackQueue.TryTake(out ICallable callback, -1, threadCancellationToken))
+                    if (callbackQueue.TryTake(out Callback callback, -1, threadCancellationToken))
                         callback.Call();
                 }
             }

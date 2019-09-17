@@ -2,13 +2,13 @@
 
 namespace NationalInstruments.Aecorn.Threading
 {
-    public class ResetToken
+    public class ResetEventToken
     {
         internal readonly ManualResetEventSlim resetEvent;
 
-        internal ResetToken(ManualResetEventSlim resetEvent)
+        internal ResetEventToken()
         {
-            this.resetEvent = resetEvent;
+            resetEvent = new ManualResetEventSlim();
         }
     }
 }
