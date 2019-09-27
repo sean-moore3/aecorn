@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{82A023E7-02A1-4F99-89B5-CE0FB5739C36}</ProjectGuid>
+    <ProjectGuid>{1D0FBC24-7ACA-4A7C-81C2-FB111546A7AC}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>NationalInstruments.Aecorn.Wex</RootNamespace>
-    <AssemblyName>NationalInstruments.Aecorn.Wex</AssemblyName>
+    <RootNamespace>NationalInstruments.Aecorn.Calibration</RootNamespace>
+    <AssemblyName>NationalInstruments.Aecorn.Calibration</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -34,6 +34,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Class1.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
